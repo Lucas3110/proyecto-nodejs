@@ -1,60 +1,71 @@
-import { pool } from '../db.js';
-import expressPromiseRouter from 'express-promise-router';
+import { pool } from '../db.js'
 
-const router = expressPromiseRouter();
-
-router.get('/employees', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM employee');
-    res.json(rows);
-});
-
-router.get('/employee/:id', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM employee WHERE id = ?', [req.params.id]);
-
-    if (rows.length <= 0) {
-        throw new Error('Employee not found');
+export const getEmployees = async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM employee');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
     }
+}
 
-    res.json(rows[0]);
-});
+export const getEmployee = async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM employee WHERE id = ?', [req.params.id]);
 
-router.post('/employees', async (req, res) => {
-    const { name, salary } = req.body;
-    const [rows] = await pool.query('INSERT INTO employee (name, salary) VALUES (?, ?)', [name, salary]);
-    res.send({
-        id: rows.insertId,
-        name,
-        salary
-    });
-});
+        if (rows.length <= 0) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
 
-router.delete('/employee/:id', async (req, res) => {
-    const [result] = await pool.query('DELETE FROM employee WHERE id = ?', [req.params.id]);
-
-    if (result.affectedRows <= 0) {
-        throw new Error('Employee not found');
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
     }
+}
 
-    res.sendStatus(204); // Salió todo bien pero no respondo al cliente
-});
 
-router.put('/employee/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, salary } = req.body;
-
-    const [result] = await pool.query('UPDATE employee SET name = IFNULL(?, name), salary = IFNULL(?, salary) WHERE id = ?', [name, salary, id]);
-
-    if (result.affectedRows <= 0) {
-        throw new Error('Employee not found');
+export const createEmployees = async (req, res) => {
+    try {
+        const { name, salary } = req.body;
+        const [rows] = await pool.query('INSERT INTO employee (name, salary) VALUES (?, ?)', [name, salary]);
+        res.send({
+            id: rows.insertId,
+            name,
+            salary
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
     }
+}
 
-    const [rows] = await pool.query('SELECT * FROM employee WHERE id = ?', [id]);
-    res.json(rows[0]);
-});
+export const deleteEmployees = async (req, res) => {
+    try {
+        const [result] = await pool.query('DELETE FROM employee WHERE id = ?', [req.params.id]);
 
-// Middleware de manejo de errores
-router.use((err, req, res, next) => {
-    res.status(500).json({ message: err.message });
-});
+        if (result.affectedRows <= 0) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+    
+        res.sendStatus(204); // Salió todo bien pero no respondo al cliente
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
 
-export default router;
+export const updateEmployees = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, salary } = req.body;
+
+        const [result] = await pool.query('UPDATE employee SET name = IFNULL(?, name), salary = IFNULL(?, salary) WHERE id = ?', [name, salary, id]);
+
+        if (result.affectedRows <= 0) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        const [rows] = await pool.query('SELECT * FROM employee WHERE id = ?', [id]);
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
